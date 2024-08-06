@@ -1,5 +1,6 @@
 package com.example.userauthenticationservice.controllers;
 
+import org.antlr.v4.runtime.misc.Pair;
 import com.example.userauthenticationservice.dtos.*;
 import com.example.userauthenticationservice.exceptions.UserAlreadyExistsException;
 import com.example.userauthenticationservice.models.User;
@@ -7,6 +8,7 @@ import com.example.userauthenticationservice.services.IAuthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,13 +52,15 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public UserDto login(@RequestBody LoginRequestDto loginRequestDto) {
-        User user = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
+    public ResponseEntity<UserDto> login(@RequestBody LoginRequestDto loginRequestDto) {
+        Pair<User, MultiValueMap<String,String>> userWithHeaders = authService.login(loginRequestDto.getEmail(), loginRequestDto.getPassword());
+        User user = userWithHeaders.a;
         if (user == null) {
             throw new RuntimeException("BAD CREDENTIALS");
         }
 
-        return from(user);
+//        return from(user);
+        return new ResponseEntity<>(from(user),userWithHeaders.b,HttpStatus.OK);
     }
 
     public ResponseEntity<Boolean> logout(@RequestBody LogoutRequestDto logoutRequestDto) {
