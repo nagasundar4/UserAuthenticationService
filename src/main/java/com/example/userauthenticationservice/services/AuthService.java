@@ -14,7 +14,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import javax.crypto.SecretKey;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,9 @@ public class AuthService implements IAuthService {
 
     @Autowired
     private UserRepo userRepo;
+
+    @Autowired
+    private SecretKey secretKey;
 
     @Autowired
     private SessionRepo sessionRepo;
@@ -92,4 +96,62 @@ public class AuthService implements IAuthService {
 
         return new Pair<User,MultiValueMap<String,String>>(user,headers);
     }
+
+    public Boolean validateToken(String token,Long userId) {
+        System.out.println(token);
+        Optional<Session> optionalSession = sessionRepo.findByTokenAndUser_Id(token,userId);
+        if(optionalSession.isEmpty()) {
+            System.out.println("Token mismatch");
+            return false;
+        }
+
+        Session session = optionalSession.get();
+        String storedToken = session.getToken();
+
+
+        JwtParser jwtParser = Jwts.parser().verifyWith(secretKey).build();
+        Claims claims = jwtParser.parseSignedClaims(storedToken).getPayload();
+
+        Long tokenExpiry = (Long)claims.get("exp");
+
+        Long currentTime = System.currentTimeMillis();
+
+        System.out.println(tokenExpiry);
+        System.out.println(currentTime);
+
+        if(currentTime > tokenExpiry) {
+            System.out.println(
+                    "Token is expired");
+            //set state to expired in my DB
+            return false;
+        }
+
+
+        //Till this point, it's good to go
+
+        User user = userRepo.findById(userId).get();
+        String email = user.getEmail();
+        String tokenEmail = (String)claims.get("email");
+        if(!email.equals(tokenEmail)) {
+            System.out.println("email mismatch");
+            return false;
+        }
+
+        return true;
+    }
+
+//    public String generateRefreshToken(String token) {
+//        Session session = sessionRepo.findByToken(token).get();
+//        User user = session.getUser();
+//
+//        Map<String,Object> claims = new HashMap<>();
+//        claims.put("user_id__",user.getId());
+//        claims.put("roles",user.getRoles());
+//        claims.put("email",user.getEmail());
+//        long nowInMillis = System.currentTimeMillis();
+//        claims.put("iat",nowInMillis);
+//        claims.put("exp",nowInMillis+1000000);
+//
+//
+//    }
 }

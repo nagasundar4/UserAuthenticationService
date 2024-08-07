@@ -1,10 +1,11 @@
 package com.example.userauthenticationservice.controllers;
 
-import org.antlr.v4.runtime.misc.Pair;
 import com.example.userauthenticationservice.dtos.*;
+import com.example.userauthenticationservice.exceptions.InvalidTokenException;
 import com.example.userauthenticationservice.exceptions.UserAlreadyExistsException;
 import com.example.userauthenticationservice.models.User;
 import com.example.userauthenticationservice.services.IAuthService;
+import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -65,5 +66,20 @@ public class AuthController {
 
     public ResponseEntity<Boolean> logout(@RequestBody LogoutRequestDto logoutRequestDto) {
         return null;
+    }
+
+    @PostMapping("/validate")
+    public ResponseEntity<Boolean> validateToken(@RequestBody ValidateTokenRequestDto validateTokenRequestDto) {
+        try {
+            System.out.println(validateTokenRequestDto.getToken());
+            Boolean response = authService.validateToken(validateTokenRequestDto.getToken(), validateTokenRequestDto.getUserId());
+            if (response == false) {
+                throw new InvalidTokenException("Either Token is stale or invalid");
+            }
+            return new ResponseEntity<>(response,HttpStatus.OK);
+
+        }catch(InvalidTokenException exception) {
+            return new ResponseEntity<>(null,HttpStatus.BAD_REQUEST);
+        }
     }
 }
